@@ -6,7 +6,7 @@ import dynamic from 'next/dynamic'
 import { 
   ArrowLeft, Save, Sparkles, Loader2, History, MessageSquare, Send, 
   Trash2, CheckCircle, RotateCcw, Smartphone, Monitor, Sun, Moon, ImageIcon, 
-  Users, Smile, Bold, Italic, FileSignature, Copy, Check 
+  Users, Smile, Bold, Italic, FileSignature, Copy, Check, User, LogOut, Key
 } from 'lucide-react'
 
 const EmojiPicker = dynamic(() => import('emoji-picker-react'), { ssr: false })
@@ -38,6 +38,29 @@ export default function TaskEditor() {
 
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
+
+  // Profile & Auth State
+  const [showProfile, setShowProfile] = useState(false)
+  const [showPwdModal, setShowPwdModal] = useState(false)
+  const [newPwd, setNewPwd] = useState('')
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+    router.push('/login')
+  }
+
+  const submitNewPassword = async () => {
+    if (newPwd.length < 6) return alert("Password must be at least 6 characters.")
+    
+    const { error } = await supabase.auth.updateUser({ password: newPwd })
+    if (error) {
+      alert("Error: " + error.message)
+    } else {
+      alert("Password updated successfully!")
+      setShowPwdModal(false)
+      setNewPwd('')
+    }
+  }
 
   useEffect(() => {
     const fetchAll = async () => {
@@ -117,28 +140,28 @@ export default function TaskEditor() {
   }
 
   const insertFooter = () => {
-  const footerText = `\n\nCaption by: \nDesign by: \n\n-Inspired by PASSION to Transform beyond EXCELLENCE- \n#MoraXtreme11.0\n#IEEEXtreme20.0\n#IEEESBUOM\n#IEEECSUOM\n#TERM2526`;
-  
-  setContent(prev => prev + footerText);
-  
-  // Instantly scroll to the bottom so the user sees the footer appear
-  setTimeout(() => {
-    if (textareaRef.current) {
-      textareaRef.current.scrollTop = textareaRef.current.scrollHeight;
-      textareaRef.current.focus();
-    }
-  }, 50);
-}
-const handleCopy = async () => {
-  if (!content) return;
-  try {
-    await navigator.clipboard.writeText(content);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000); // Resets the button after 2 seconds
-  } catch (err) {
-    alert("Failed to copy text. Your browser might be blocking it.");
+    const footerText = `\n\nCaption by: \nDesign by: \n\n-Inspired by PASSION to Transform beyond EXCELLENCE- \n#MoraXtreme11.0\n#IEEEXtreme20.0\n#IEEESBUOM\n#IEEECSUOM\n#TERM2526`;
+    
+    setContent(prev => prev + footerText);
+    
+    setTimeout(() => {
+      if (textareaRef.current) {
+        textareaRef.current.scrollTop = textareaRef.current.scrollHeight;
+        textareaRef.current.focus();
+      }
+    }, 50);
   }
-}
+
+  const handleCopy = async () => {
+    if (!content) return;
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      alert("Failed to copy text. Your browser might be blocking it.");
+    }
+  }
 
   const updateTaskField = async (field: string, value: string | null) => {
     setTask({ ...task, [field]: value })
@@ -159,13 +182,13 @@ const handleCopy = async () => {
     setIsProcessing(false)
   }
 
- const handleDelete = async () => {
-  if (window.confirm("Move this task to the Trash?")) {
-    await updateTaskField('status', 'Trash')
-    router.refresh() // <-- ADD THIS
-    router.push('/')
+  const handleDelete = async () => {
+    if (window.confirm("Move this task to the Trash?")) {
+      await updateTaskField('status', 'Trash')
+      router.refresh() 
+      router.push('/')
+    }
   }
-}
 
   const handlePolish = async () => {
     if (!content) return alert("Write some text first!")
@@ -319,6 +342,27 @@ const handleCopy = async () => {
           {userRole === 'admin' && task.status === 'Review' && (
             <button onClick={handleApproveTask} disabled={isProcessing} className="w-full lg:w-auto flex justify-center items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 font-semibold mt-2 lg:mt-0 text-sm md:text-base"><CheckCircle size={16} /> Approve</button>
           )}
+
+          <div className="hidden lg:block w-px h-6 bg-gray-700 mx-1"></div>
+
+          {/* PROFILE & LOGOUT MENU */}
+          <div className="relative">
+            <button onClick={() => setShowProfile(!showProfile)} className="p-2 rounded-full hover:bg-gray-800 relative transition border border-gray-700 flex items-center justify-center">
+              <User size={18} className="text-gray-300" />
+            </button>
+            
+            {showProfile && (
+              <div className="absolute right-0 mt-3 w-48 bg-gray-800 border border-gray-700 shadow-2xl rounded-lg overflow-hidden z-[100]">
+                <div className="p-3 bg-gray-900 border-b border-gray-700 text-xs font-semibold text-gray-400 uppercase tracking-wider">Account</div>
+                <button onClick={() => { setShowProfile(false); setShowPwdModal(true); }} className="w-full text-left px-4 py-3 text-sm text-gray-200 hover:bg-gray-700 flex items-center gap-2 transition">
+                  <Key size={16} /> Update Password
+                </button>
+                <button onClick={handleLogout} className="w-full text-left px-4 py-3 text-sm text-red-400 hover:bg-gray-700 flex items-center gap-2 transition border-t border-gray-700">
+                  <LogOut size={16} /> Log Out
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -344,19 +388,18 @@ const handleCopy = async () => {
             <button onClick={() => setShowEmojiPicker(!showEmojiPicker)} className="p-2 hover:bg-gray-800 rounded-md text-gray-300 transition shrink-0" title="Insert Emoji"><Smile size={16}/></button>
             <div className="w-px h-6 bg-gray-700 mx-1 shrink-0"></div>
   
-    {/* NEW FOOTER BUTTON */}
-  <button onClick={insertFooter} className="px-3 py-1.5 hover:bg-blue-900/40 rounded-md text-blue-400 transition shrink-0 flex items-center gap-2 text-xs md:text-sm font-semibold border border-blue-900/50 bg-blue-900/20" title="Append Official Footer">
-    <FileSignature size={14}/> Add Footer
-  </button>
-          <div className="w-px h-6 bg-gray-700 mx-1 shrink-0"></div>
+            {/* FOOTER BUTTON */}
+            <button onClick={insertFooter} className="px-3 py-1.5 hover:bg-blue-900/40 rounded-md text-blue-400 transition shrink-0 flex items-center gap-2 text-xs md:text-sm font-semibold border border-blue-900/50 bg-blue-900/20" title="Append Official Footer">
+              <FileSignature size={14}/> Add Footer
+            </button>
+            <div className="w-px h-6 bg-gray-700 mx-1 shrink-0"></div>
 
-  {/* NEW COPY BUTTON */}
-  <button onClick={handleCopy} className={`px-3 py-1.5 rounded-md transition shrink-0 flex items-center gap-2 text-xs md:text-sm font-semibold border ${copied ? 'bg-green-900/20 text-green-400 border-green-900/50' : 'bg-gray-800 hover:bg-gray-700 text-gray-300 border-gray-700'}`} title="Copy to Clipboard">
-    {copied ? <><Check size={14}/> Copied!</> : <><Copy size={14}/> Copy</>}
-  </button>
+            {/* COPY BUTTON */}
+            <button onClick={handleCopy} className={`px-3 py-1.5 rounded-md transition shrink-0 flex items-center gap-2 text-xs md:text-sm font-semibold border ${copied ? 'bg-green-900/20 text-green-400 border-green-900/50' : 'bg-gray-800 hover:bg-gray-700 text-gray-300 border-gray-700'}`} title="Copy to Clipboard">
+              {copied ? <><Check size={14}/> Copied!</> : <><Copy size={14}/> Copy</>}
+            </button>
           </div>
 
-          {/* The picker is now safely outside the overflow container */}
           {showEmojiPicker && (
             <div className="absolute top-16 left-0 md:left-2 z-[100] shadow-2xl">
               <EmojiPicker onEmojiClick={(e) => handleEmoji(e.emoji)} theme={"dark" as any} height={400} width={320} />
@@ -460,6 +503,27 @@ const handleCopy = async () => {
           )}
         </div>
       </div>
+
+      {/* PASSWORD UPDATE MODAL */}
+      {showPwdModal && (
+        <div className="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4">
+          <div className="bg-gray-900 border border-gray-700 rounded-xl shadow-2xl w-full max-w-sm p-6 text-gray-100">
+            <h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-white"><Key size={20}/> Update Password</h3>
+            <input 
+              type="password" 
+              value={newPwd} 
+              onChange={(e) => setNewPwd(e.target.value)} 
+              placeholder="Enter new password (min 6 chars)" 
+              className="w-full bg-gray-800 border border-gray-700 rounded-lg p-3 mb-6 focus:ring-2 focus:ring-blue-500 outline-none transition text-white placeholder-gray-500"
+            />
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setShowPwdModal(false)} className="px-4 py-2 text-gray-400 hover:bg-gray-800 rounded-lg font-medium transition">Cancel</button>
+              <button onClick={submitNewPassword} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition shadow-sm">Save Password</button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   )
 }

@@ -1,10 +1,11 @@
 'use client'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
 import { 
   Users, CheckCircle, Edit3, Plus, Archive, LayoutDashboard, 
-  Trash2, RotateCcw, AlertOctagon, Calendar, Bell, ChevronDown, ChevronUp 
+  Trash2, RotateCcw, AlertOctagon, Calendar, Bell, ChevronDown, ChevronUp, User, LogOut, Key 
 } from 'lucide-react'
 
 export default function Dashboard() {
@@ -20,6 +21,30 @@ export default function Dashboard() {
   const [currentUserId, setCurrentUserId] = useState('') 
   const [userRole, setUserRole] = useState<'editor' | 'admin'>('editor')
   const supabase = createClient()
+  const router = useRouter()
+
+  // Profile & Auth State
+  const [showProfile, setShowProfile] = useState(false)
+  const [showPwdModal, setShowPwdModal] = useState(false)
+  const [newPwd, setNewPwd] = useState('')
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+    router.push('/login')
+  }
+
+  const submitNewPassword = async () => {
+    if (newPwd.length < 6) return alert("Password must be at least 6 characters.")
+    
+    const { error } = await supabase.auth.updateUser({ password: newPwd })
+    if (error) {
+      alert("Error: " + error.message)
+    } else {
+      alert("Password updated successfully!")
+      setShowPwdModal(false)
+      setNewPwd('')
+    }
+  }
 
   useEffect(() => {
     let isMounted = true;
@@ -41,7 +66,6 @@ export default function Dashboard() {
     
     fetchUserAndData()
 
-    // 1. Presence Sync (Who is online)
     const room = supabase.channel('editorial_room')
     room.on('presence', { event: 'sync' }, () => {
       const newState = room.presenceState()
@@ -51,16 +75,13 @@ export default function Dashboard() {
       if (status === 'SUBSCRIBED' && user) await room.track({ user_id: user.id, online_at: new Date().toISOString() })
     })
 
-    // 2. Realtime Database Sync (Live Tasks & Notifications)
     const dbChanges = supabase.channel('db-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, () => {
-        // Re-fetch tasks when anything changes
         supabase.from('tasks').select('*').then(({data}) => {
           if (data && isMounted) setTasks(data)
         })
       })
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications' }, () => {
-         // Re-fetch notifications for current user
          supabase.auth.getUser().then(({data: {user}}) => {
             if (user) {
               supabase.from('notifications').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).then(({data}) => {
@@ -134,32 +155,51 @@ export default function Dashboard() {
               {unreadCount > 0 && <span className="absolute top-0 right-0 bg-red-500 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center">{unreadCount}</span>}
             </button>
             
-            {/* NOTIFICATION MENU - Mobile safe positioning */}
-            {/* NOTIFICATION MENU - Fixed mobile positioning */}
-{showNotifs && (
-  <div className="fixed top-24 left-4 right-4 sm:absolute sm:top-auto sm:left-auto sm:right-0 sm:mt-3 sm:w-80 bg-white border border-gray-200 shadow-2xl rounded-lg overflow-hidden z-[100]">
-    <div className="p-3 bg-gray-50 border-b font-semibold text-sm">Notifications</div>
-    <div className="max-h-[60vh] sm:max-h-80 overflow-y-auto">
-      {notifications.length === 0 ? <p className="p-4 text-sm text-gray-500 text-center">All caught up!</p> : 
-        notifications.map(n => (
-          <Link 
-            href={n.task_id ? `/task/${n.task_id}` : '#'} 
-            key={n.id} 
-            onClick={() => setShowNotifs(false)}
-            className={`block p-3 text-sm border-b hover:bg-gray-100 transition ${n.is_read ? 'bg-white text-gray-700' : 'bg-blue-50/50 text-blue-900 font-medium'}`}
-          >
-            {n.message}
-            <div className="text-[10px] text-gray-500 mt-1">{new Date(n.created_at).toLocaleDateString()}</div>
-          </Link>
-        ))
-      }
-    </div>
-  </div>
-)}
+            {showNotifs && (
+              <div className="fixed top-24 left-4 right-4 sm:absolute sm:top-auto sm:left-auto sm:right-0 sm:mt-3 sm:w-80 bg-white border border-gray-200 shadow-2xl rounded-lg overflow-hidden z-[100]">
+                <div className="p-3 bg-gray-50 border-b font-semibold text-sm">Notifications</div>
+                <div className="max-h-[60vh] sm:max-h-80 overflow-y-auto">
+                  {notifications.length === 0 ? <p className="p-4 text-sm text-gray-500 text-center">All caught up!</p> : 
+                    notifications.map(n => (
+                      <Link 
+                        href={n.task_id ? `/task/${n.task_id}` : '#'} 
+                        key={n.id} 
+                        onClick={() => setShowNotifs(false)}
+                        className={`block p-3 text-sm border-b hover:bg-gray-100 transition ${n.is_read ? 'bg-white text-gray-700' : 'bg-blue-50/50 text-blue-900 font-medium'}`}
+                      >
+                        {n.message}
+                        <div className="text-[10px] text-gray-500 mt-1">{new Date(n.created_at).toLocaleDateString()}</div>
+                      </Link>
+                    ))
+                  }
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="hidden lg:block w-px h-6 bg-gray-300 mx-1"></div>
+
+          {/* PROFILE MENU */}
+          <div className="relative">
+            <button onClick={() => setShowProfile(!showProfile)} className="p-2 rounded-full hover:bg-gray-200 relative transition border border-gray-300">
+              <User size={20} className="text-gray-700" />
+            </button>
+            
+            {showProfile && (
+              <div className="absolute right-0 mt-3 w-48 bg-white border border-gray-200 shadow-2xl rounded-lg overflow-hidden z-[100]">
+                <div className="p-3 bg-gray-50 border-b text-xs font-semibold text-gray-500 uppercase tracking-wider">Account</div>
+                <button onClick={() => { setShowProfile(false); setShowPwdModal(true); }} className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 transition">
+                  <Key size={16} /> Update Password
+                </button>
+                <button onClick={handleLogout} className="w-full text-left px-4 py-3 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 transition border-t border-gray-100">
+                  <LogOut size={16} /> Log Out
+                </button>
+              </div>
+            )}
           </div>
 
           {userRole === 'admin' && (
-            <div className="flex bg-gray-200 rounded p-1 overflow-x-auto w-full md:w-auto">
+            <div className="flex bg-gray-200 rounded p-1 overflow-x-auto w-full md:w-auto mt-2 md:mt-0">
               <button onClick={() => setViewMode('active')} className={`flex items-center gap-2 px-3 py-2 whitespace-nowrap rounded font-medium text-sm transition ${viewMode === 'active' ? 'bg-white shadow text-blue-600' : 'text-gray-600 hover:text-gray-900'}`}><LayoutDashboard size={16} /> Board</button>
               <button onClick={() => setViewMode('archive')} className={`flex items-center gap-2 px-3 py-2 whitespace-nowrap rounded font-medium text-sm transition ${viewMode === 'archive' ? 'bg-white shadow text-gray-900' : 'text-gray-600 hover:text-gray-900'}`}><Archive size={16} /> Archive</button>
               <button onClick={() => setViewMode('trash')} className={`flex items-center gap-2 px-3 py-2 whitespace-nowrap rounded font-medium text-sm transition ${viewMode === 'trash' ? 'bg-white shadow text-red-600' : 'text-gray-600 hover:text-gray-900'}`}><Trash2 size={16} /> Trash</button>
@@ -167,7 +207,7 @@ export default function Dashboard() {
           )}
 
           {userRole === 'admin' && (
-            <button onClick={handleAddTask} className="flex flex-1 md:flex-none justify-center items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition">
+            <button onClick={handleAddTask} className="flex flex-1 md:flex-none justify-center items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition mt-2 md:mt-0">
               <Plus size={18} /> New Task
             </button>
           )}
@@ -275,6 +315,27 @@ export default function Dashboard() {
           </div>
         </div>
       )}
+
+      {/* PASSWORD UPDATE MODAL */}
+      {showPwdModal && (
+        <div className="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6">
+            <h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-gray-900"><Key size={20}/> Update Password</h3>
+            <input 
+              type="password" 
+              value={newPwd} 
+              onChange={(e) => setNewPwd(e.target.value)} 
+              placeholder="Enter new password (min 6 chars)" 
+              className="w-full border border-gray-300 rounded-lg p-3 mb-6 focus:ring-2 focus:ring-blue-500 outline-none transition text-gray-900"
+            />
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setShowPwdModal(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg font-medium transition">Cancel</button>
+              <button onClick={submitNewPassword} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition shadow-sm">Save Password</button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   )
 }
