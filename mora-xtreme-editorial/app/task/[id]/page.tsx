@@ -312,19 +312,20 @@ export default function TaskEditor() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-auto lg:h-[700px]">
         
         {/* RICH TEXT EDITOR COLUMN */}
-        <div className="flex flex-col gap-3 w-full h-[400px] lg:h-full">
-          <div className="flex items-center gap-2 bg-gray-900 border border-gray-800 p-2 rounded-xl shadow-sm relative overflow-x-auto">
+        <div className="flex flex-col gap-3 w-full h-[400px] lg:h-full relative">
+          <div className="flex items-center gap-2 bg-gray-900 border border-gray-800 p-2 rounded-xl shadow-sm overflow-x-auto">
             <button onClick={() => applyFormat('bold')} className="p-2 hover:bg-gray-800 rounded-md text-gray-300 transition shrink-0" title="Bold Selection"><Bold size={16}/></button>
             <button onClick={() => applyFormat('italic')} className="p-2 hover:bg-gray-800 rounded-md text-gray-300 transition shrink-0" title="Italicize Selection"><Italic size={16}/></button>
             <div className="w-px h-6 bg-gray-700 mx-1 shrink-0"></div>
             <button onClick={() => setShowEmojiPicker(!showEmojiPicker)} className="p-2 hover:bg-gray-800 rounded-md text-gray-300 transition shrink-0" title="Insert Emoji"><Smile size={16}/></button>
-            
-            {showEmojiPicker && (
-              <div className="absolute top-12 left-0 md:left-auto z-50 shadow-2xl">
-                <EmojiPicker onEmojiClick={(e) => handleEmoji(e.emoji)} theme={"dark" as any} />
-              </div>
-            )}
           </div>
+
+          {/* The picker is now safely outside the overflow container */}
+          {showEmojiPicker && (
+            <div className="absolute top-16 left-0 md:left-2 z-[100] shadow-2xl">
+              <EmojiPicker onEmojiClick={(e) => handleEmoji(e.emoji)} theme={"dark" as any} height={400} width={320} />
+            </div>
+          )}
 
           <textarea
             ref={textareaRef}
