@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { createClient } from '../utils/supabase/client'
+import { createClient } from '@/utils/supabase/client'
 import { 
   Users, CheckCircle, Edit3, Plus, Archive, LayoutDashboard, 
   Trash2, RotateCcw, AlertOctagon, Calendar, Bell, ChevronDown, ChevronUp 
