@@ -6,7 +6,7 @@ import dynamic from 'next/dynamic'
 import { 
   ArrowLeft, Save, Sparkles, Loader2, History, MessageSquare, Send, 
   Trash2, CheckCircle, RotateCcw, Smartphone, Monitor, Sun, Moon, ImageIcon, 
-  Users, Smile, Bold, Italic, FileSignature 
+  Users, Smile, Bold, Italic, FileSignature, Copy, Check 
 } from 'lucide-react'
 
 const EmojiPicker = dynamic(() => import('emoji-picker-react'), { ssr: false })
@@ -27,7 +27,7 @@ export default function TaskEditor() {
   const [versions, setVersions] = useState<any[]>([])
   const [comments, setComments] = useState<any[]>([])
   const [newComment, setNewComment] = useState('')
-  
+  const [copied, setCopied] = useState(false)
   const [activePanel, setActivePanel] = useState<'comments' | 'history' | 'whatsapp'>('whatsapp')
   const [isProcessing, setIsProcessing] = useState(false)
 
@@ -128,6 +128,16 @@ export default function TaskEditor() {
       textareaRef.current.focus();
     }
   }, 50);
+}
+const handleCopy = async () => {
+  if (!content) return;
+  try {
+    await navigator.clipboard.writeText(content);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000); // Resets the button after 2 seconds
+  } catch (err) {
+    alert("Failed to copy text. Your browser might be blocking it.");
+  }
 }
 
   const updateTaskField = async (field: string, value: string | null) => {
@@ -338,7 +348,12 @@ export default function TaskEditor() {
   <button onClick={insertFooter} className="px-3 py-1.5 hover:bg-blue-900/40 rounded-md text-blue-400 transition shrink-0 flex items-center gap-2 text-xs md:text-sm font-semibold border border-blue-900/50 bg-blue-900/20" title="Append Official Footer">
     <FileSignature size={14}/> Add Footer
   </button>
-          
+          <div className="w-px h-6 bg-gray-700 mx-1 shrink-0"></div>
+
+  {/* NEW COPY BUTTON */}
+  <button onClick={handleCopy} className={`px-3 py-1.5 rounded-md transition shrink-0 flex items-center gap-2 text-xs md:text-sm font-semibold border ${copied ? 'bg-green-900/20 text-green-400 border-green-900/50' : 'bg-gray-800 hover:bg-gray-700 text-gray-300 border-gray-700'}`} title="Copy to Clipboard">
+    {copied ? <><Check size={14}/> Copied!</> : <><Copy size={14}/> Copy</>}
+  </button>
           </div>
 
           {/* The picker is now safely outside the overflow container */}
