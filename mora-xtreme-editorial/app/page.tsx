@@ -135,26 +135,27 @@ export default function Dashboard() {
             </button>
             
             {/* NOTIFICATION MENU - Mobile safe positioning */}
-            {showNotifs && (
-              <div className="absolute right-[-10px] sm:right-0 mt-3 w-[320px] max-w-[90vw] md:w-80 bg-white border border-gray-200 shadow-2xl rounded-lg overflow-hidden z-[100]">
-                <div className="p-3 bg-gray-50 border-b font-semibold text-sm">Notifications</div>
-                <div className="max-h-64 overflow-y-auto">
-                  {notifications.length === 0 ? <p className="p-4 text-sm text-gray-500 text-center">All caught up!</p> : 
-                    notifications.map(n => (
-                      <Link 
-                        href={n.task_id ? `/task/${n.task_id}` : '#'} 
-                        key={n.id} 
-                        onClick={() => setShowNotifs(false)}
-                        className={`block p-3 text-sm border-b hover:bg-gray-100 transition ${n.is_read ? 'bg-white text-gray-700' : 'bg-blue-50/50 text-blue-900 font-medium'}`}
-                      >
-                        {n.message}
-                        <div className="text-[10px] text-gray-500 mt-1">{new Date(n.created_at).toLocaleDateString()}</div>
-                      </Link>
-                    ))
-                  }
-                </div>
-              </div>
-            )}
+            {/* NOTIFICATION MENU - Fixed mobile positioning */}
+{showNotifs && (
+  <div className="fixed top-24 left-4 right-4 sm:absolute sm:top-auto sm:left-auto sm:right-0 sm:mt-3 sm:w-80 bg-white border border-gray-200 shadow-2xl rounded-lg overflow-hidden z-[100]">
+    <div className="p-3 bg-gray-50 border-b font-semibold text-sm">Notifications</div>
+    <div className="max-h-[60vh] sm:max-h-80 overflow-y-auto">
+      {notifications.length === 0 ? <p className="p-4 text-sm text-gray-500 text-center">All caught up!</p> : 
+        notifications.map(n => (
+          <Link 
+            href={n.task_id ? `/task/${n.task_id}` : '#'} 
+            key={n.id} 
+            onClick={() => setShowNotifs(false)}
+            className={`block p-3 text-sm border-b hover:bg-gray-100 transition ${n.is_read ? 'bg-white text-gray-700' : 'bg-blue-50/50 text-blue-900 font-medium'}`}
+          >
+            {n.message}
+            <div className="text-[10px] text-gray-500 mt-1">{new Date(n.created_at).toLocaleDateString()}</div>
+          </Link>
+        ))
+      }
+    </div>
+  </div>
+)}
           </div>
 
           {userRole === 'admin' && (

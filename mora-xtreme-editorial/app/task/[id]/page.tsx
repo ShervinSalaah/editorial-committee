@@ -135,12 +135,13 @@ export default function TaskEditor() {
     setIsProcessing(false)
   }
 
-  const handleDelete = async () => {
-    if (window.confirm("Move this task to the Trash?")) {
-      await updateTaskField('status', 'Trash')
-      router.push('/')
-    }
+ const handleDelete = async () => {
+  if (window.confirm("Move this task to the Trash?")) {
+    await updateTaskField('status', 'Trash')
+    router.refresh() // <-- ADD THIS
+    router.push('/')
   }
+}
 
   const handlePolish = async () => {
     if (!content) return alert("Write some text first!")
@@ -202,6 +203,7 @@ export default function TaskEditor() {
     await fetch('/api/notify', { 
       method: 'POST', body: JSON.stringify({ to_email: 'shervinsalaah@gmail.com', subject: `Task Ready for Review: ${task.title}`, message: `${userEmail} has sent "${task.title}" for review.`, taskUrl: window.location.href }) 
     })
+    router.refresh() 
     router.push('/')
   }
 
@@ -223,6 +225,7 @@ export default function TaskEditor() {
         })
       }
     }
+    router.refresh()
     router.push('/')
   }
 
