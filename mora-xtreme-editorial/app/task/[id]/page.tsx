@@ -6,7 +6,7 @@ import dynamic from 'next/dynamic'
 import { 
   ArrowLeft, Save, Sparkles, Loader2, History, MessageSquare, Send, 
   Trash2, CheckCircle, RotateCcw, Smartphone, Monitor, Sun, Moon, ImageIcon, 
-  Users, Smile, Bold, Italic 
+  Users, Smile, Bold, Italic, FileSignature 
 } from 'lucide-react'
 
 const EmojiPicker = dynamic(() => import('emoji-picker-react'), { ssr: false })
@@ -115,6 +115,20 @@ export default function TaskEditor() {
       el.focus();
     }, 0);
   }
+
+  const insertFooter = () => {
+  const footerText = `\n\nCaption by: \nDesign by: \n\n-Inspired by PASSION to Transform beyond EXCELLENCE- \n#MoraXtreme11.0\n#IEEEXtreme20.0\n#IEEESBUOM\n#IEEECSUOM\n#TERM2526`;
+  
+  setContent(prev => prev + footerText);
+  
+  // Instantly scroll to the bottom so the user sees the footer appear
+  setTimeout(() => {
+    if (textareaRef.current) {
+      textareaRef.current.scrollTop = textareaRef.current.scrollHeight;
+      textareaRef.current.focus();
+    }
+  }, 50);
+}
 
   const updateTaskField = async (field: string, value: string | null) => {
     setTask({ ...task, [field]: value })
@@ -318,6 +332,13 @@ export default function TaskEditor() {
             <button onClick={() => applyFormat('italic')} className="p-2 hover:bg-gray-800 rounded-md text-gray-300 transition shrink-0" title="Italicize Selection"><Italic size={16}/></button>
             <div className="w-px h-6 bg-gray-700 mx-1 shrink-0"></div>
             <button onClick={() => setShowEmojiPicker(!showEmojiPicker)} className="p-2 hover:bg-gray-800 rounded-md text-gray-300 transition shrink-0" title="Insert Emoji"><Smile size={16}/></button>
+            <div className="w-px h-6 bg-gray-700 mx-1 shrink-0"></div>
+  
+    {/* NEW FOOTER BUTTON */}
+  <button onClick={insertFooter} className="px-3 py-1.5 hover:bg-blue-900/40 rounded-md text-blue-400 transition shrink-0 flex items-center gap-2 text-xs md:text-sm font-semibold border border-blue-900/50 bg-blue-900/20" title="Append Official Footer">
+    <FileSignature size={14}/> Add Footer
+  </button>
+          
           </div>
 
           {/* The picker is now safely outside the overflow container */}
