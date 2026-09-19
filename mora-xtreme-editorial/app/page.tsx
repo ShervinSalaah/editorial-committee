@@ -14,7 +14,6 @@ export default function Dashboard() {
   const [showNotifs, setShowNotifs] = useState(false)
   const [viewMode, setViewMode] = useState<'active' | 'archive' | 'trash'>('active')
   
-  // Collapsible Section States
   const [adminCols, setAdminCols] = useState<Record<string, boolean>>({ Drafting: true, Review: true, Approved: true })
   const [editorCols, setEditorCols] = useState({ drafts: true, review: true })
 
@@ -23,9 +22,11 @@ export default function Dashboard() {
   const supabase = createClient()
 
   useEffect(() => {
+    let isMounted = true;
+
     const fetchUserAndData = async () => {
       const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
+      if (user && isMounted) {
         setCurrentUserId(user.id)
         const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
         if (profile) setUserRole(profile.role)
@@ -35,27 +36,52 @@ export default function Dashboard() {
       }
 
       const { data } = await supabase.from('tasks').select('*')
-      if (data) setTasks(data)
+      if (data && isMounted) setTasks(data)
     }
+    
     fetchUserAndData()
 
+    // 1. Presence Sync (Who is online)
     const room = supabase.channel('editorial_room')
     room.on('presence', { event: 'sync' }, () => {
       const newState = room.presenceState()
-      setOnlineUsers(Object.keys(newState).map(key => (newState[key][0] as any).user_id))
+      if (isMounted) setOnlineUsers(Object.keys(newState).map(key => (newState[key][0] as any).user_id))
     }).subscribe(async (status) => {
       const { data: { user } } = await supabase.auth.getUser()
       if (status === 'SUBSCRIBED' && user) await room.track({ user_id: user.id, online_at: new Date().toISOString() })
     })
 
-    return () => { supabase.removeChannel(room) }
+    // 2. Realtime Database Sync (Live Tasks & Notifications)
+    const dbChanges = supabase.channel('db-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, () => {
+        // Re-fetch tasks when anything changes
+        supabase.from('tasks').select('*').then(({data}) => {
+          if (data && isMounted) setTasks(data)
+        })
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications' }, () => {
+         // Re-fetch notifications for current user
+         supabase.auth.getUser().then(({data: {user}}) => {
+            if (user) {
+              supabase.from('notifications').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).then(({data}) => {
+                if (data && isMounted) setNotifications(data)
+              })
+            }
+         })
+      })
+      .subscribe()
+
+    return () => { 
+      isMounted = false;
+      supabase.removeChannel(room);
+      supabase.removeChannel(dbChanges);
+    }
   }, [supabase])
 
   const handleAddTask = async () => {
     const title = prompt("Enter the new task title:")
     if (!title) return
-    const { data } = await supabase.from('tasks').insert([{ title: title, status: 'Drafting', created_by: currentUserId }]).select()
-    if (data) setTasks([...tasks, ...data])
+    await supabase.from('tasks').insert([{ title: title, status: 'Drafting', created_by: currentUserId }])
   }
 
   const markNotifsRead = async () => {
@@ -65,15 +91,11 @@ export default function Dashboard() {
 
   const handleRestoreTask = async (id: string) => {
     await supabase.from('tasks').update({ status: 'Drafting' }).eq('id', id)
-    const { data } = await supabase.from('tasks').select('*')
-    if (data) setTasks(data)
   }
 
   const handlePermanentDelete = async (id: string) => {
     if (window.confirm("Permanently delete this task? This cannot be undone.")) {
       await supabase.from('tasks').delete().eq('id', id)
-      const { data } = await supabase.from('tasks').select('*')
-      if (data) setTasks(data)
     }
   }
 
@@ -112,9 +134,10 @@ export default function Dashboard() {
               {unreadCount > 0 && <span className="absolute top-0 right-0 bg-red-500 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center">{unreadCount}</span>}
             </button>
             
+            {/* NOTIFICATION MENU - Mobile safe positioning */}
             {showNotifs && (
-              <div className="absolute right-0 mt-2 w-[280px] md:w-80 bg-white border border-gray-200 shadow-xl rounded-lg overflow-hidden z-50">
-                <div className="p-3 bg-gray-50 border-b font-semibold">Notifications</div>
+              <div className="absolute right-[-10px] sm:right-0 mt-3 w-[320px] max-w-[90vw] md:w-80 bg-white border border-gray-200 shadow-2xl rounded-lg overflow-hidden z-[100]">
+                <div className="p-3 bg-gray-50 border-b font-semibold text-sm">Notifications</div>
                 <div className="max-h-64 overflow-y-auto">
                   {notifications.length === 0 ? <p className="p-4 text-sm text-gray-500 text-center">All caught up!</p> : 
                     notifications.map(n => (
@@ -154,7 +177,6 @@ export default function Dashboard() {
       {userRole === 'editor' && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
           
-          {/* Drafts Column */}
           <div className="bg-white p-4 md:p-6 rounded-lg shadow-sm border border-gray-200 h-fit">
             <button onClick={() => setEditorCols({...editorCols, drafts: !editorCols.drafts})} className="w-full flex justify-between items-center mb-2 md:mb-4 outline-none">
               <h2 className="text-xl font-bold flex items-center gap-2 text-gray-700"><Edit3 size={20} /> Active Drafts</h2>
@@ -174,7 +196,6 @@ export default function Dashboard() {
             )}
           </div>
 
-          {/* Review Column */}
           <div className="bg-white p-4 md:p-6 rounded-lg shadow-sm border border-blue-200 h-fit">
             <button onClick={() => setEditorCols({...editorCols, review: !editorCols.review})} className="w-full flex justify-between items-center mb-2 md:mb-4 outline-none">
               <h2 className="text-xl font-bold flex items-center gap-2 text-blue-600"><CheckCircle size={20} /> Pending Admin Review</h2>
